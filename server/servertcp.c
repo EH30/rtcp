@@ -1,3 +1,10 @@
+/*
+* Created By: EH
+* -----------------------
+* Educational purpose only             
+* I'm not responsible for your actions 
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,18 +12,18 @@
 
 #define BUFF_LEN 9000
 
-int get_char_len(char* in){
+int get_char_len( char* in ){
     int output = 0;
-    for (int i = 0; in[i] != '\0'; i++, output++);
+    for ( int i = 0; in[i] != '\0'; i++, output++ );
 
     return output;
 }
 
 
-int is_file_exist(char* name) {
+int is_file_exist( char* name ) {
     FILE* fptr;
 
-    if ((fptr = fopen(name, "rb")) == NULL) {
+    if ( (fptr = fopen(name, "rb")) == NULL ) {
         return 1;
     }
     fclose(fptr);
@@ -25,7 +32,7 @@ int is_file_exist(char* name) {
 }
 
 
-int download_file(SOCKET sock) {
+int download_file( SOCKET sock ) {
     FILE* fptr; 
     char name[BUFF_LEN];
     int bytesRecvd;
@@ -38,24 +45,20 @@ int download_file(SOCKET sock) {
     }
 
     printf("filename -> %s\n", name);
-    if((fptr = fopen(name, "ab")) == NULL)
+    if( (fptr = fopen(name, "ab")) == NULL )
     {
         printf("error");
         return 1;
     }
     
     char buffer[1];
-    
-    while ((bytesRecvd = recv(sock, buffer, sizeof(buffer), 0)) > 0) {
-        //bytesRecvd = recv(sock, buffer, sizeof(buffer), 0);
-        
-        printf("buffer -> %c\n", buffer[0]);
-
+    printf("[*]Downloading...\n");
+    while ( (bytesRecvd = recv(sock, buffer, sizeof(buffer), 0)) > 0 ) {
         fwrite(buffer, sizeof(buffer), 1, fptr);
         memset(buffer, 0, sizeof(buffer));
     }
 
-    printf("out of loop\n");
+    printf("[*]Finished\n");
     
     fclose(fptr);
 
@@ -64,28 +67,27 @@ int download_file(SOCKET sock) {
 
 
 
-int upload_file(char* filename, SOCKET sock) {
+int upload_file( char* filename, SOCKET sock ) {
     FILE* fptr; 
     int read;
     char buffer[1];
     
     memset(buffer, 0, sizeof(buffer));
-    printf("filename -> [%s]", filename);
-    if((fptr = fopen(filename, "rb")) == NULL)
+    printf("filename -> [%s]\n", filename);
+    if( (fptr = fopen(filename, "rb")) == NULL )
     {
-        printf("error_file");
+        printf("error_file\n");
         return 1;
     }
 
     send(sock, filename, strlen(filename) + 1, 0);
     Sleep(3000); 
-    while (fread(buffer, sizeof(buffer), 1, fptr) > 0) {
-        printf("buffer -> %c\n", buffer[0]);
+    printf("[*]Sending File\n");
+    while ( fread(buffer, sizeof(buffer), 1, fptr) > 0 ) {
         send(sock, buffer, sizeof(buffer), 0);
     }
 
-    //send(sock, '\0', sizeof('\0'), 0);
-    printf("sent file\n");
+    printf("[*]Finished\n");
     closesocket(sock);
     fclose(fptr);
 
@@ -93,11 +95,11 @@ int upload_file(char* filename, SOCKET sock) {
 }
 
 
-int ls_dir(SOCKET sock) {
+int ls_dir( SOCKET sock ) {
     int bytesRecvd;
     char buffer[BUFF_LEN];
     
-    while ((bytesRecvd = recv(sock, buffer, sizeof(buffer), 0)) > 0) {
+    while ( (bytesRecvd = recv(sock, buffer, sizeof(buffer), 0)) > 0 ) {
         printf(buffer);
         memset(buffer, 0, sizeof(buffer));
     }
@@ -106,17 +108,17 @@ int ls_dir(SOCKET sock) {
 }
 
 
-int first_word(char* found, char* command) {
+int first_word( char* found, char* command ) {
     int size = get_char_len(found);
 
-    if (size >= get_char_len(command) ) {
-        for (int i = 0; i < size; i++) {
+    if ( size >= get_char_len(command) ) {
+        for ( int i = 0; i < size; i++ ) {
             if (found[i] == ' ' && command[i] == ' ' || found[i] == ' ' && command[i] == '\0'
             || found[i] == '\n' && command[i] == '\0' ) 
             {
                 return 0;
             }
-            else if (found[i] != command[i]) {
+            else if ( found[i] != command[i] ) {
                 return 1;
             }
         }   
@@ -130,7 +132,7 @@ int first_word(char* found, char* command) {
 
 
 
-int serversoc(char* ip, int port){
+int serversoc( char* ip, int port ){
     WSADATA wsadata;
     SOCKET server, client;
     SOCKADDR_IN serveraddr, clientaddr;
@@ -143,8 +145,8 @@ int serversoc(char* ip, int port){
 
     iresult = WSAStartup(MAKEWORD(2, 0), &wsadata);
 
-    if (iresult != 0) {
-        printf("error 0");
+    if ( iresult != 0 ) {
+        printf("[-]Startup error\n");
         WSACleanup();
         return 1;
     }
@@ -155,8 +157,8 @@ int serversoc(char* ip, int port){
 
     server = socket(AF_INET, SOCK_STREAM, 0);
     
-    if (server == INVALID_SOCKET) {
-        printf("error 1");
+    if ( server == INVALID_SOCKET ) {
+        printf("[-]INVALID_SOCKET\n");
         closesocket(server);
         WSACleanup();
         return 1;
@@ -165,8 +167,8 @@ int serversoc(char* ip, int port){
     bind(server, (SOCKADDR*)&serveraddr, sizeof(serveraddr));
     iresult = listen(server, 0);
 
-    if (iresult == SOCKET_ERROR) {
-        printf("SOCKET_ERROR");
+    if ( iresult == SOCKET_ERROR ) {
+        printf("SOCKET_ERROR\n");
         closesocket(server);
         WSACleanup();
         return 1;
@@ -180,8 +182,6 @@ int serversoc(char* ip, int port){
     printf("Listening -> %s %d\n", ip, port);
     client = accept(server, (SOCKADDR*)&clientaddr, &clientaddrsize);
     
-    printf("connected\n");
-
     while (1) {
         memset(buffer, 0, sizeof(buffer));
         memset(msg, 0, sizeof(msg));
@@ -190,8 +190,7 @@ int serversoc(char* ip, int port){
         printf("/> ");
         fgets(msg, BUFF_LEN, stdin);
 
-        if (first_word(msg, "upload_file") == 0) {
-            printf("upload_file\n\n");
+        if ( first_word(msg, "upload_file") == 0 ) {
             count = 0;
             for (i = 12; msg[i] != '\0'; i++)
             {
@@ -200,11 +199,9 @@ int serversoc(char* ip, int port){
             }
             out_msg[count-1] = '\0';
 
-            printf("out_msg -> [%s]\n", out_msg);
-
             if (is_file_exist(out_msg) != 0)
             {
-                printf("error");
+                printf("[-]File Does not exist\n");
                 continue;
             }
 
@@ -216,9 +213,7 @@ int serversoc(char* ip, int port){
             
             continue;            
         }
-        else if (first_word(msg, "download_file") == 0) {
-            printf("download_file\n\n");
-            //printf("buffer recv 0 -> [%s]\n", buffer);
+        else if ( first_word(msg, "download_file") == 0 ) {
             send(client, msg, sizeof(msg), 0);
 
             code = download_file(client);
@@ -237,7 +232,11 @@ int serversoc(char* ip, int port){
             client = accept(server, (SOCKADDR*)&clientaddr, &clientaddrsize);
             continue;
         }
-        else if (msg == "exit\n") {
+        else if ( msg == "exit_client\n" ) {
+            send(client, msg, sizeof(msg), 0);
+            break;
+        }
+        else if ( msg == "exit\n" ) {
             break;
         }
 
@@ -255,7 +254,7 @@ int serversoc(char* ip, int port){
 }
 
 
-int main(){
-    serversoc("127.0.0.1", 9999);
+int main( int argc, char* argv[] ){
+    serversoc(argv[1], atoi(argv[2]));
     return 0;
 }
