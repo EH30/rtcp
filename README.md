@@ -14,3 +14,5 @@ run              --->   run exe files on the client machine
 upload_file      --->   Send files to the client (upload_file [File Name])   
 download_file    --->   download files from the client (download_file [File Name])  
    
+
+use gcc compiler     
