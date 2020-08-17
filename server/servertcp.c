@@ -69,7 +69,6 @@ int download_file( SOCKET sock ) {
 
 int upload_file( char* filename, SOCKET sock ) {
     FILE* fptr; 
-    int read;
     char buffer[1];
     
     memset(buffer, 0, sizeof(buffer));
@@ -97,10 +96,11 @@ int upload_file( char* filename, SOCKET sock ) {
 
 int ls_dir( SOCKET sock ) {
     int bytesRecvd;
-    char buffer[BUFF_LEN];
+    char buffer[1000];
     
     while ( (bytesRecvd = recv(sock, buffer, sizeof(buffer), 0)) > 0 ) {
-        printf(buffer);
+        printf("%s", buffer);
+        send(sock, "done", sizeof("done"), 0);
         memset(buffer, 0, sizeof(buffer));
     }
 
@@ -246,10 +246,11 @@ int serversoc( char* ip, int port ){
         printf("\n");
         puts(buffer);
     }
-    
+
+    printf("\n[*]Closing Socket\n");
+
     closesocket(client);
     WSACleanup();
-
     return 0;
 }
 
@@ -262,5 +263,6 @@ int main( int argc, char* argv[] ){
     }
 
     serversoc(argv[1], atoi(argv[2]));
+    printf("[*]Disconnected\n");
     return 0;
 }

