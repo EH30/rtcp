@@ -7,6 +7,11 @@ I'm not responsible for your actions
 
 <img src= "https://github.com/EH30/rtcp/blob/master/screenshot/rtcp.PNG">
 
+use gcc compiler    
+rtcp compile example: gcc rtcp.c -o rtcp.exe -lws2_32   
+servertcp compile example: gcc servertcp.c -o servertcp.exe -lws2_32   
+
+
 simple reverse tcp     
    
 cd               --->   navigate between directories   
@@ -18,7 +23,3 @@ pwd              --->   Print the name of the working directory
 exit_client      --->   stops rtcp.exe on targeted machine
 ls_disk          --->   list Disk partition
 
-
-use gcc compiler    
-rtcp compile example: gcc rtcp.c -o rtcp.exe -lws2_32   
-servertcp compile example: gcc servertcp.c -o servertcp.exe -lws2_32   
