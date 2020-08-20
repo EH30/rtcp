@@ -276,7 +276,7 @@ void ClientSoc( char* IP , int port ) {
     
 
     while (1) {
-        Sleep(10000);
+        Sleep(30000);
 
         if ( wsa_soc_con(IP, port) != 0 ) {
             continue;
