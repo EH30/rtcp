@@ -12,7 +12,7 @@
 
 #define BUFF_LEN 9000
 
-int get_char_len( char* in ){
+int get_char_len( char* in ) {
     int output = 0;
     for ( int i = 0; in[i] != '\0'; i++, output++ );
 
@@ -80,7 +80,7 @@ int upload_file( char* filename, SOCKET sock ) {
     }
 
     send(sock, filename, strlen(filename) + 1, 0);
-    Sleep(3000); 
+    Sleep(5000); 
     printf("[*]Sending File\n");
     while ( fread(buffer, sizeof(buffer), 1, fptr) > 0 ) {
         send(sock, buffer, sizeof(buffer), 0);
@@ -132,7 +132,7 @@ int first_word( char* found, char* command ) {
 
 
 
-int serversoc( char* ip, int port ){
+int serversoc( char* ip, int port ) {
     WSADATA wsadata;
     SOCKET server, client;
     SOCKADDR_IN serveraddr, clientaddr;
@@ -248,14 +248,14 @@ int serversoc( char* ip, int port ){
     }
 
     printf("\n[*]Closing Socket\n");
-
+    closesocket(server);
     closesocket(client);
     WSACleanup();
     return 0;
 }
 
 
-int main( int argc, char* argv[] ){
+int main( int argc, char* argv[] ) {
     
     if ( argc < 3 ) {
         printf("usage: ./servertcp [IP] [PORT]");
