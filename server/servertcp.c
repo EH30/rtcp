@@ -12,6 +12,27 @@
 
 #define BUFF_LEN 9000
 
+struct store {
+    char buffer[1024];
+    char name[1024];
+    int size;
+    int bytesRecvd;
+};
+
+int getSize(char* filename) {
+    FILE* fptr;
+    int out = 0;
+    if ( (fptr = fopen(filename, "rb")) == NULL ) {
+        return 1;
+    }
+
+    fseek(fptr, 0L, SEEK_END);
+    out = ftell(fptr);
+    fclose(fptr);    
+
+    return out;
+}
+
 int get_char_len( char* in ) {
     int output = 0;
     for ( int i = 0; in[i] != '\0'; i++, output++ );
@@ -33,61 +54,71 @@ int is_file_exist( char* name ) {
 
 
 int download_file( SOCKET sock ) {
-    FILE* fptr; 
-    char name[BUFF_LEN];
-    int bytesRecvd;
-
-    bytesRecvd = recv(sock, name, sizeof(name), 0);
+    FILE* fptr;
+    struct store pt;
     
-    if (bytesRecvd <= 0) 
-    {
-        return 1;
-    }
+    pt.bytesRecvd = recv(sock, pt.buffer, sizeof(pt.buffer), 0);
+    pt.size = atoi(pt.buffer);
+    memset(pt.buffer, 0, sizeof(pt.buffer));
+    pt.bytesRecvd = recv(sock, pt.name, sizeof(pt.name), 0);
+    fptr = fopen(pt.name, "ab");
 
-    printf("filename -> %s\n", name);
-    if( (fptr = fopen(name, "ab")) == NULL )
-    {
-        printf("error");
+    if (fptr == NULL) {
         return 1;
     }
     
-    char buffer[1];
-    printf("[*]Downloading...\n");
-    while ( (bytesRecvd = recv(sock, buffer, sizeof(buffer), 0)) > 0 ) {
-        fwrite(buffer, sizeof(buffer), 1, fptr);
-        memset(buffer, 0, sizeof(buffer));
+    printf("[*]File name: %s\n", pt.name);
+    printf("[*]Size: %d\n", pt.size);
+
+    pt.bytesRecvd = 0;
+    while (pt.size > 0) {
+        pt.bytesRecvd = recv(sock, pt.buffer, sizeof(pt.buffer), 0);
+        pt.size -= pt.bytesRecvd;
+        fwrite(pt.buffer, pt.bytesRecvd, 1, fptr);
+        memset(pt.buffer, 0, sizeof(pt.buffer));
     }
 
     printf("[*]Finished\n");
-    
     fclose(fptr);
-
+    
     return 0;
 }
 
-
-
 int upload_file( char* filename, SOCKET sock ) {
-    FILE* fptr; 
-    char buffer[1];
+    FILE* fptr;
+    fptr = fopen(filename, "rb");
     
-    memset(buffer, 0, sizeof(buffer));
-    printf("filename -> [%s]\n", filename);
-    if( (fptr = fopen(filename, "rb")) == NULL )
-    {
-        printf("error_file\n");
+    if (fptr == NULL) {
         return 1;
     }
+    
+    int bytesSent = 0;
+    char buffer[1024];
 
-    send(sock, filename, strlen(filename) + 1, 0);
-    Sleep(5000); 
-    printf("[*]Sending File\n");
-    while ( fread(buffer, sizeof(buffer), 1, fptr) > 0 ) {
-        send(sock, buffer, sizeof(buffer), 0);
+    sprintf(buffer, "%d", getSize(filename));
+    printf("[*]Size: %s\n", buffer);
+
+    send(sock, buffer, sizeof(buffer), 0);
+    recv(sock, buffer, sizeof(buffer), 0);
+    
+    Sleep(3000);
+    
+    bytesSent = send(sock, filename, strlen(filename)+1, 0);
+    recv(sock, buffer, sizeof(buffer), 0);
+    memset(buffer, 0, sizeof(buffer));
+    
+    Sleep(3000);
+    while ( (bytesSent = fread(buffer, 1, sizeof(buffer), fptr) ) > 0) {
+        send(sock, buffer, bytesSent, 0);
+        memset(buffer, 0, sizeof(buffer));
     }
+    
+    memset(buffer, 0, sizeof(buffer));
+    printf("[*]Waiting for response...\n");
 
+    recv(sock, buffer, sizeof(buffer), 0);    
     printf("[*]Finished\n");
-    closesocket(sock);
+
     fclose(fptr);
 
     return 0;
@@ -99,6 +130,9 @@ int ls_dir( SOCKET sock ) {
     char buffer[1000];
     
     while ( (bytesRecvd = recv(sock, buffer, sizeof(buffer), 0)) > 0 ) {
+        if (strcmp(buffer, "\n\n\n") == 0) {
+            break;
+        }
         printf("%s", buffer);
         send(sock, "done", sizeof("done"), 0);
         memset(buffer, 0, sizeof(buffer));
@@ -137,6 +171,7 @@ int serversoc( char* ip, int port ) {
     SOCKET server, client;
     SOCKADDR_IN serveraddr, clientaddr;
     int iresult;
+    int bytesSent;
     int bytesRecvd;
     int code;
     int i;
@@ -192,7 +227,7 @@ int serversoc( char* ip, int port ) {
 
         if ( first_word(msg, "upload_file") == 0 ) {
             count = 0;
-            for (i = 12; msg[i] != '\0'; i++)
+            for (i = 12; i < strlen(msg); i++)
             {
                 out_msg[count] = msg[i];
                 count++;
@@ -204,45 +239,56 @@ int serversoc( char* ip, int port ) {
                 printf("[-]File Does not exist\n");
                 continue;
             }
-
-            send(client, msg, sizeof(msg), 0);
-
-            code = upload_file(out_msg, client);
-            printf("\n");
-            client = accept(server, (SOCKADDR*)&clientaddr, &clientaddrsize);
+            send(client, "upload_file", strlen("upload_file"), 0);
             
+            printf("[*]Sending...\n");
+            printf("[*]File Name: %s\n", out_msg);
+            Sleep(3000);
+            code = upload_file(out_msg, client);
+            
+            printf("\n");
             continue;            
         }
         else if ( first_word(msg, "download_file") == 0 ) {
-            send(client, msg, sizeof(msg), 0);
+            bytesSent = send(client, msg, strlen(msg), 0);
+            bytesRecvd = recv(client, buffer, BUFF_LEN, 0);
 
-            code = download_file(client);
+            if (strcmp(buffer, "\n\n\n") == 0) {
+                code = download_file(client);
+            }
+            else
+            {
+                printf("[-]Error File Not Found");
+            }
+
             printf("\n");
 
             if (code != 0) {
                 printf("error\n");
             }
 
-            client = accept(server, (SOCKADDR*)&clientaddr, &clientaddrsize);
+            continue;
+        }
+        else if ( strcmp(msg, "upload_file") == 0 ) {
+            printf("to upload file: upload_file [filename]\n");
             continue;
         }
         else if ( strcmp(msg,"ls\n") == 0 || strcmp(msg,"dir\n") == 0 ) {
-            send(client, msg, sizeof(msg), 0);
+            send(client, msg, strlen(msg), 0);
             ls_dir(client);
-            client = accept(server, (SOCKADDR*)&clientaddr, &clientaddrsize);
             continue;
         }
         else if ( strcmp(msg, "exit_client\n") == 0 ) {
-            send(client, msg, sizeof(msg), 0);
+            send(client, msg, strlen(msg), 0);
             break;
         }
         else if ( strcmp(msg, "exit\n") == 0 ) {
             break;
         }
 
-        send(client, msg, sizeof(msg), 0);
+        send(client, msg, strlen(msg), 0);
+        Sleep(3000);
         bytesRecvd = recv(client, buffer, sizeof(buffer), 0);
-        
         printf("\n");
         puts(buffer);
     }
@@ -258,7 +304,7 @@ int serversoc( char* ip, int port ) {
 int main( int argc, char* argv[] ) {
     
     if ( argc < 3 ) {
-        printf("usage: ./servertcp [IP] [PORT]");
+        printf("usage: ./servertcp.exe [IP] [PORT]");
         return 1;
     }
 
