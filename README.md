@@ -11,7 +11,7 @@ gcc compiler
 --------------------------------------------------    
 rtcp normal compile example: gcc rtcp.c -o rtcp.exe -lws2_32   
 rtcp run without console compile example: gcc -mwindows rtcp.c -o rtcp.exe -lws2_32    
-servertcp compile example: gcc servertcp.c -o servertcp.exe -lws2_32   
+servertcp compile example: gcc server.c -o server.exe -lws2_32   
 
 
 simple reverse tcp     
