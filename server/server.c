@@ -61,7 +61,7 @@ int download_file( SOCKET sock ) {
     pt.size = atoi(pt.buffer);
     memset(pt.buffer, 0, sizeof(pt.buffer));
     pt.bytesRecvd = recv(sock, pt.name, sizeof(pt.name), 0);
-    fptr = fopen(pt.name, "ab");
+    fptr = fopen(pt.name, "wb");
 
     if (fptr == NULL) {
         return 1;

